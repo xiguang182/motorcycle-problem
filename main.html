@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<script src="https://unpkg.com/vue/dist/vue.js"></script>
+<style>
+    .fade-enter-active, .fade-leave-active {
+        transition: opacity 1.0s
+    }
+    .fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */ {
+        opacity: 0
+    }
+</style>
+<div>
+    <h3>Problem Statement</h3>
+    Two motorcycles are at the two ends of a road right next to a wall behind them (walls and road are perpendicular. They start heading towards one another in the opposite directions on two straight and parallel lines.Each vehicle has a constant velocity but one is faster. They pass each other at a point X meters from the closest wall. They go on to the opposite wall, rest for t minutes, and return towards their home wall. This time, they meet at a point Y meters from the closest wall. How long is the road, i.e. the distance between two walls?
+</div>
+
+<div id="app">
+
+    <h3>Solutions</h3>
+
+    <h4>Scenario A</h4>
+    <button v-on:click="showA = !showA">Toggle Visibility</button>
+    <transition name="fade">
+        <p v-if="showA">When one motorcycle is at least twice as fast as the other one, it's impossible to solve the problem. In this scenario, the slower motorcycle will meet the faster one before he could reach the other wall or finish the rest, depending on the rest time. There are only 2 formulas but they got 3 independent variables(2 velocities and the distance between walls), which means the distance will be depended on either one of the other variables. <br>Even if one addition information is given, this scenario is still complicated. XY could be close to the same wall or different wall. The condition for XY sharing the same wall as reference is one motorcycle is at least 3 time as fast as the other one. When rest time increase, the meeting point Y will move towards the opposite wall and settle at that wall eventually.</p>
+    </transition>
+    <h4>Scenario B</h4>
+    <button v-on:click="showB = !showB">Toggle Visibility</button>
+    <transition name="fade">
+        <p v-if="showB">If the problem statement is precise, scenario B is the only possible scenario. "<b>They</b> go on to the opposite wall, rest for t minutes, and <b>return</b> towards their home wall." If they both return, which means they both finished their rest, faster one must not exceed twice of the speed of the slower one. In this case, the rest time doesn't affect the distance calculation since they got exactly the same rest time. Also, X and Y will always be near the different walls since when slower one returns, the faster one has been moving for a while. In other word, The slower one has less time than the first time to run away from the wall.</p>
+    </transition>
+    <h4>Formulas</h4>
+    <button v-on:click="showF = !showF">Toggle Visibility</button>
+    <transition name="fade">
+        <p v-if="showF">Assuming the faster speed is a, the slower speed is b and the distance between two walls is S.<br>
+            X=Sb/(a+b) name this equation as f1<br>
+            Y=3Sb/(a+b)-S name this equation as f2<br>
+            3*f1 - f2:<br>
+            3X-Y=S which is the answer.<br>
+            Also, f2/f1:<br>
+            Y/X=3-(a+b)/b=2-a/b<br>
+            a>b and a<2b<br>
+            thus, 0 < Y/X < 1<br>
+            i.e. Y has to be smaller than X
+        </p>
+    </transition>
+
+
+    <h4>Calculator</h4>
+    <p><button v-on:click="showC = !showC">Toggle Visibility</button></p>
+
+    <transition name="fade">
+        <form v-if="showC">
+            <number-input
+                    label="Metre(s)"
+                    v-model="distanceX"
+            ></number-input>
+            <number-input
+                    label="Metre(s)"
+                    v-model="distanceY"
+            ></number-input>
+            <number-input
+                    label="Sec"
+                    v-model="restTime"
+            ></number-input>
+
+            <p>Distance between two walls: {{ total }} Metres</p>
+        </form>
+    </transition>
+</div>
+<script>
+    var numValidator = {
+        format: function (number) {
+            return (Math.trunc(number * 100) / 100)
+        },
+        parse: function (newString, oldNumber) {
+            var CleanParse = function (value) {
+                return { value: value }
+            };
+
+            var newNumber = Number(newString);
+            var indexOfDot = newString.indexOf('.');
+            var indexOfE = newString.indexOf('e');
+
+            if (isNaN(newNumber)) {
+                if (
+                    indexOfDot === -1 &&
+                    indexOfE > 0 &&
+                    indexOfE === newString.length - 1 &&
+                    Number(newString.slice(0, indexOfE)) !== 0
+                ) {
+                    return new CleanParse(oldNumber)
+                } else {
+                    return {
+                        value:oldNumber,
+                        warning:'Invalid Number'
+                    };
+                }
+            }
+
+            //deal with scientific notation
+            var scientificString = numValidator.format(newNumber);
+            var scientificNumber = Number(scientificString);
+
+            if (scientificNumber === newNumber) {
+                if (indexOfE !== -1 && indexOfE === newString.length - 2) {
+                    return {
+                        value:newNumber,
+                        warning:'Convert to regular notation'
+                    }
+                } else {
+                    return new CleanParse(newNumber);
+                }
+            } else {
+                return {
+                    value:oldNumber,
+                    warning:"Invalid Number"
+                }
+            }
+        }
+    };
+
+    Vue.component('number-input', {
+        template: '\
+    <div>\
+      <input\
+        ref="input"\
+        v-bind:value="value"\
+        v-on:input="updateValue($event.target.value)"\
+        v-on:focus="selectAll"\
+        v-on:blur="formatValue"\
+      >\
+      <label v-if="label">{{ label }}</label>\
+    </div>\
+  ',
+        props: {
+            value: {
+                type: Number,
+                default: 0
+            },
+            label: {
+                type: String,
+                default: ''
+            }
+        },
+        mounted: function () {
+            this.formatValue()
+        },
+        methods: {
+            updateValue: function (value) {
+                var result = numValidator.parse(value, this.value);
+                if (result.warning) {
+                    this.$refs.input.value = result.value
+                }
+                this.$emit('input', result.value);
+            },
+            formatValue: function () {
+                this.$refs.input.value = numValidator.format(this.value)
+            },
+            selectAll: function (event) {
+                setTimeout(function () {
+                    event.target.select()
+                }, 0)
+            }
+        }
+    })
+
+    new Vue({
+        el: '#app',
+        data: {
+            distanceX: 0,
+            distanceY: 0,
+            restTime: 0,
+            showA:false,
+            showB:false,
+            showC:false,
+            showF:false
+        },
+        computed: {
+            total: function () {
+                return (this.distanceX > this.distanceY ? 3 * this.distanceX - this.distanceY : "N/a");
+            }
+        }
+    })
+</script>
+
+</body>
+</html>
